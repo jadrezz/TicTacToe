@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
+	"unicode"
 )
 
 var winCombinations = [][]int{
@@ -18,46 +20,44 @@ var winCombinations = [][]int{
 	{2, 4, 6}, // Побочная диагональ
 }
 
-const boardCells int = 9
-
 type cell struct {
-	cellNum int
-	player  string
+	id    int
+	value rune
 }
 
-func showArea(board *[boardCells]cell) {
-	for n, cell := range board {
-		fmt.Printf("%d: %s\t", cell.cellNum, cell.player)
+func drawBoard(board []cell) {
+	fmt.Println(strings.Repeat("_", 11))
+	for n, v := range board {
+		fmt.Printf("|%c| ", v.value)
 		if (n+1)%3 == 0 {
 			fmt.Println()
+			continue
 		}
 	}
+	fmt.Println(strings.Repeat("_", 11))
 }
 
-func makeStep(board *[boardCells]cell, num int, figure string) bool {
-	if num < 0 || num >= boardCells || board[num].player != "" {
-		fmt.Println("Клетка занята или вы вышли за поле")
+func makeStep(board []cell, num int, playerFigure rune) bool {
+	if num < 0 || num > 9 || board[num].value == 'X' || board[num].value == 'Y' {
 		return false
 	}
-	board[num].player = figure
+	board[num].value = playerFigure
 	return true
 }
 
-func checkWin(board *[boardCells]cell) (win bool, player string) {
+func isWin(board []cell) bool {
 	for _, combo := range winCombinations {
-		a, b, c := combo[0], combo[1], combo[2]
-		if board[a].player != "" &&
-			board[a].player == board[b].player &&
-			board[b].player == board[c].player {
-			return true, board[a].player
+		posA, posB, posC := combo[0], combo[1], combo[2]
+		if board[posA].value == board[posB].value && board[posB].value == board[posC].value {
+			return true
 		}
 	}
-	return false, ""
+	return false
 }
 
-func isDraw(board *[boardCells]cell) bool {
-	for _, cell := range board {
-		if cell.player == "" {
+func isDraw(board []cell) bool {
+	for _, set := range board {
+		if unicode.IsNumber(set.value) {
 			return false
 		}
 	}
@@ -65,37 +65,43 @@ func isDraw(board *[boardCells]cell) bool {
 }
 
 func main() {
-	board := [boardCells]cell{
-		{cellNum: 1}, {cellNum: 2}, {cellNum: 3},
-		{cellNum: 4}, {cellNum: 5}, {cellNum: 6},
-		{cellNum: 7}, {cellNum: 8}, {cellNum: 9},
+	board := []cell{
+		{1, '1'}, {3, '2'}, {3, '3'},
+		{4, '4'}, {5, '5'}, {6, '6'},
+		{7, '7'}, {8, '8'}, {9, '9'},
 	}
-	gamer := "X"
+	player := 'X'
 	input := bufio.NewScanner(os.Stdin)
 
 	for {
-		showArea(&board)
-		fmt.Printf("Игрок %s, выберите цифру для хода\n", gamer)
+		drawBoard(board)
+		fmt.Printf("Игрок %c, сделайте ход\n", player)
+
 		input.Scan()
-		num, err := strconv.Atoi(input.Text())
+		n, err := strconv.Atoi(input.Text())
 		if err != nil {
-			fmt.Println("Некорректный ввод. Повторите попытку")
-			continue
-		}
-		if !makeStep(&board, num-1, gamer) {
+			fmt.Println("Некорректный ввод")
 			continue
 		}
 
-		if win, player := checkWin(&board); win {
-			fmt.Printf("Победил игрок %s\n", player)
-			fmt.Println("Игра окончена")
-			break
-		} else if isDraw(&board) {
-			fmt.Println("Ничья! Игра окончена.")
+		if !makeStep(board, n-1, player) {
+			fmt.Println("Выход за пределы доски или занятая клетка")
+			continue
+		}
+
+		if isWin(board) {
+			drawBoard(board)
+			fmt.Printf("Победили %c\n", player)
 			break
 		}
 
-		gamer = map[string]string{"X": "Y", "Y": "X"}[gamer]
+		if isDraw(board) {
+			drawBoard(board)
+			fmt.Println("Ничья!")
+			break
+		}
+
+		player = map[rune]rune{'X': 'Y', 'Y': 'X'}[player]
+
 	}
-
 }
